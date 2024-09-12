@@ -1,5 +1,6 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::ffi::c_char;
+use std::convert::TryInto;
 
 use once_cell::race::OnceRef;
 use pyo3::ffi::{PyCapsule_Import, Py_IsInitialized};
@@ -80,10 +81,21 @@ impl PolarsAllocator {
             if r.is_none() {
                 // Do not use eprintln; it may alloc.
                 let msg = b"failed to get allocator capsule\n";
-                // Message length type is platform-dependent.
-                let msg_len = msg.len().try_into().unwrap();
+                // Convert length to u32
+                let msg_len: u32 = msg.len().try_into().expect("Message length too large for u32");
                 unsafe { libc::write(2, msg.as_ptr() as *const libc::c_void, msg_len) };
             }
+            
+            // #[cfg(debug_assertions)]
+            // if r.is_none() {
+            //     // Do not use eprintln; it may alloc.
+            //     let msg = b"failed to get allocator capsule\n";
+            //     // Message length type is platform-dependent.
+            //     let msg_len = msg.len().try_into().unwrap();
+                
+            //     unsafe { libc::write(2, msg.as_ptr() as *const libc::c_void, msg_len) };
+            // }
+
             r.unwrap_or(&FALLBACK_ALLOCATOR_CAPSULE)
         })
     }
